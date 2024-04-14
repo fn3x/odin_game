@@ -56,21 +56,21 @@ main :: proc() {
 			}
 		}
 
-    // ------------------------------------------------------
-    // ----------------- RENDER SETUP START -----------------
-    // Show renderer
+		// ------------------------------------------------------
+		// ----------------- RENDER SETUP START -----------------
+		// Show renderer
 		SDL.RenderPresent(game.renderer)
-    // Set background color
+		// Set background color
 		SDL.SetRenderDrawColor(game.renderer, 0, 0, 0, 100)
-    // Clear renderer from previous scene
+		// Clear renderer from previous scene
 		SDL.RenderClear(game.renderer)
-    // ------------------ RENDER SETUP END ------------------
-    // ------------------------------------------------------
+		// ------------------ RENDER SETUP END ------------------
+		// ------------------------------------------------------
 
-    // Place update code below this line
+		// Place update code below this line
 
-    // E.g. draw white line
+		// E.g. draw white line
 		SDL.SetRenderDrawColor(game.renderer, 255, 255, 255, 100)
-    SDL.RenderDrawLine(game.renderer, 0, 0, 300, 300)
+		SDL.RenderDrawLine(game.renderer, 0, 0, 300, 300)
 	}
 }
