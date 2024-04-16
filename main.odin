@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:math"
 import "core:math/linalg"
 import SDL "vendor:sdl2"
 
@@ -9,18 +10,27 @@ WINDOW_HEIGHT :: 960
 WINDOW_FLAGS :: SDL.WINDOW_SHOWN | SDL.WINDOW_RESIZABLE
 RENDER_FLAGS :: SDL.RENDERER_ACCELERATED
 
-GRAVITY :: 1
-JUMP_MULTIPLIER :: 3
-JUMP_COUNTER :: 150
-VELOCITY_GAIN :: 1
+GRAVITY :: 0.1
+JUMP_SPEED :: 3
+JUMP_ACCELERATION :: 0.1
+MAX_JUMP_TIME_THRESHOLD :: 120
+MIN_JUMP_TIME_THRESHOLD :: 80
+VERT_VELOCITY_MAX :: 10
+
+VELOCITY_GAIN :: 1.5
 
 Game :: struct {
-	renderer:             ^SDL.Renderer,
-	time:                 f64,
-	dt:                   f64,
-	keyboard:             []u8,
-	jump_button_released: bool,
-	entities:             [dynamic]Entity,
+	renderer: ^SDL.Renderer,
+	time:     f64,
+	dt:       f64,
+	keyboard: []u8,
+	entities: [dynamic]Entity,
+}
+
+EntityState :: enum {
+	STAND,
+	WALK,
+	JUMP,
 }
 
 EntityType :: enum {
@@ -28,12 +38,15 @@ EntityType :: enum {
 }
 
 Entity :: struct {
-	type:         EntityType,
-	pos:          [2]f32,
-	vel:          [2]f32,
-	jumping:      bool,
-	grounded:     bool,
-	jump_counter: f32,
+	type:              EntityType,
+	state:             EntityState,
+	jump_pressed_time: f64,
+	jumped:            bool,
+	prev_pos:          [2]f32,
+	pos:               [2]f32,
+	prev_vel:          [2]f32,
+	vel:               [2]f32,
+	grounded:          bool,
 }
 
 render_entity :: proc(entity: ^Entity, game: ^Game) {
@@ -52,22 +65,41 @@ update_entity :: proc(entity: ^Entity, game: ^Game) {
 
 	switch entity.type {
 	case .PLAYER:
-		can_jump := !entity.jumping && entity.grounded && game.jump_button_released
+		entity.prev_pos = entity.pos
+		entity.prev_vel = entity.vel
+
 		jump_pressed :=
 			b8(game.keyboard[SDL.SCANCODE_W]) |
 			b8(game.keyboard[SDL.SCANCODE_UP]) |
 			b8(game.keyboard[SDL.SCANCODE_SPACE])
 
-		if can_jump && jump_pressed && entity.jump_counter == 0 {
-			entity.jumping = true
-			entity.vel.y = -JUMP_MULTIPLIER
-			entity.jump_counter += JUMP_COUNTER
-		} else {
-			entity.jump_counter = max(entity.jump_counter - dt, 0)
+		if !jump_pressed {
+			entity.jumped = false
 		}
 
-		if entity.jump_counter == 0 {
-			entity.vel.y += GRAVITY
+		if jump_pressed {
+			entity.jump_pressed_time += game.dt
+		} else {
+			entity.jump_pressed_time = 0
+			entity.state = .STAND
+		}
+
+		if entity.grounded && jump_pressed && entity.state != .JUMP {
+			entity.vel.y = JUMP_SPEED
+			entity.state = .JUMP
+			entity.jumped = true
+		}
+
+		if entity.jumped &&
+		   entity.state == .JUMP &&
+		   entity.jump_pressed_time < MAX_JUMP_TIME_THRESHOLD &&
+		   entity.jump_pressed_time > MIN_JUMP_TIME_THRESHOLD {
+			entity.vel.y += JUMP_ACCELERATION
+		}
+
+		if !entity.grounded &&
+		   (entity.jump_pressed_time > MAX_JUMP_TIME_THRESHOLD || entity.jump_pressed_time < MIN_JUMP_TIME_THRESHOLD) {
+			entity.vel.y -= GRAVITY
 		}
 
 		dir: f32 = 0.0
@@ -80,7 +112,7 @@ update_entity :: proc(entity: ^Entity, game: ^Game) {
 		}
 
 		entity.pos.x += dir * VELOCITY_GAIN * dt
-		entity.pos.y += entity.vel.y * dt
+		entity.pos.y -= entity.vel.y * dt
 
 		entity.pos.x = clamp(entity.pos.x, 0, WINDOW_WIDTH - 50)
 		entity.pos.y = clamp(entity.pos.y, 0, WINDOW_HEIGHT - 50)
@@ -129,16 +161,15 @@ main :: proc() {
 		SDL.DestroyWindow(window)
 	}
 
-	tickrate := 144.0
+	tickrate := 240.0
 	ticktime := 1000.0 / tickrate
 
 	dt := 0.0
 
 	game := Game {
-		renderer             = SDL.CreateRenderer(window, -1, RENDER_FLAGS),
-		time                 = get_time(),
-		dt                   = ticktime,
-		jump_button_released = true,
+		renderer = SDL.CreateRenderer(window, -1, RENDER_FLAGS),
+		time     = get_time(),
+		dt       = ticktime,
 	}
 
 	defer {
@@ -154,10 +185,7 @@ main :: proc() {
 		SDL.DestroyRenderer(game.renderer)
 	}
 
-	append(
-		&game.entities,
-		Entity{type = .PLAYER, pos = {0, 0}, vel = {0, 0}, jumping = false, grounded = false},
-	)
+	append(&game.entities, Entity{type = .PLAYER})
 
 	event := SDL.Event{}
 
