@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 import SDL "vendor:sdl2"
+import SDL_IMG "vendor:sdl2/image"
 
 WINDOW_WIDTH :: 1024
 WINDOW_HEIGHT :: 960
@@ -40,6 +41,7 @@ EntityType :: enum {
 Entity :: struct {
 	type:              EntityType,
 	state:             EntityState,
+	texture:           ^SDL.Texture,
 	jump_pressed_time: f64,
 	jumped:            bool,
 	prev_pos:          [2]f32,
@@ -53,8 +55,10 @@ render_entity :: proc(entity: ^Entity, game: ^Game) {
 	switch entity.type {
 	case .PLAYER:
 		SDL.SetRenderDrawColor(game.renderer, 255, 0, 255, 0)
-		SDL.RenderDrawRectF(
+		SDL.RenderCopyF(
 			game.renderer,
+			entity.texture,
+			nil,
 			&SDL.FRect{x = entity.pos.x, y = entity.pos.y, w = 50, h = 50},
 		)
 	}
@@ -98,7 +102,8 @@ update_entity :: proc(entity: ^Entity, game: ^Game) {
 		}
 
 		if !entity.grounded &&
-		   (entity.jump_pressed_time > MAX_JUMP_TIME_THRESHOLD || entity.jump_pressed_time < MIN_JUMP_TIME_THRESHOLD) {
+		   (entity.jump_pressed_time > MAX_JUMP_TIME_THRESHOLD ||
+				   entity.jump_pressed_time < MIN_JUMP_TIME_THRESHOLD) {
 			entity.vel.y -= GRAVITY
 		}
 
@@ -185,7 +190,14 @@ main :: proc() {
 		SDL.DestroyRenderer(game.renderer)
 	}
 
-	append(&game.entities, Entity{type = .PLAYER})
+	player := SDL_IMG.LoadTexture(game.renderer, "player.png")
+  assert(player != nil, string(SDL_IMG.GetError()))
+  defer {
+		fmt.println("Destroying player texture..")
+    SDL.DestroyTexture(player)
+  }
+
+	append(&game.entities, Entity{type = .PLAYER, texture = player})
 
 	event := SDL.Event{}
 
