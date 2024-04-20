@@ -6,19 +6,18 @@ import "core:math/linalg"
 import SDL "vendor:sdl2"
 import SDL_IMG "vendor:sdl2/image"
 
-WINDOW_WIDTH :: 1024
-WINDOW_HEIGHT :: 960
+WINDOW_WIDTH :: 1920
+WINDOW_HEIGHT :: 1080
 WINDOW_FLAGS :: SDL.WINDOW_SHOWN | SDL.WINDOW_RESIZABLE
 RENDER_FLAGS :: SDL.RENDERER_ACCELERATED
 
-GRAVITY :: 0.1
-JUMP_SPEED :: 3
-JUMP_ACCELERATION :: 0.1
-MAX_JUMP_TIME_THRESHOLD :: 120
-MIN_JUMP_TIME_THRESHOLD :: 80
-VERT_VELOCITY_MAX :: 10
+GRAVITY :: 0.08
+JUMP_SPEED :: 1.8
+JUMP_ACCELERATION :: 0.05
+MAX_JUMP_TIME_THRESHOLD :: 140
+MIN_JUMP_TIME_THRESHOLD :: 10
 
-VELOCITY_GAIN :: 1.5
+VELOCITY_GAIN :: 1.0
 
 Game :: struct {
 	renderer: ^SDL.Renderer,
@@ -166,7 +165,7 @@ main :: proc() {
 		SDL.DestroyWindow(window)
 	}
 
-	tickrate := 240.0
+	tickrate := 128.0
 	ticktime := 1000.0 / tickrate
 
 	dt := 0.0
