@@ -190,11 +190,18 @@ main :: proc() {
 		SDL.DestroyRenderer(game.renderer)
 	}
 
-	player := SDL_IMG.LoadTexture(game.renderer, "player.png")
+	player := SDL_IMG.LoadTexture(game.renderer, "assets/images/player.png")
   assert(player != nil, string(SDL_IMG.GetError()))
   defer {
 		fmt.println("Destroying player texture..")
     SDL.DestroyTexture(player)
+  }
+
+	background := SDL_IMG.LoadTexture(game.renderer, "assets/images/background.png")
+  assert(background != nil, string(SDL_IMG.GetError()))
+  defer {
+		fmt.println("Destroying background texture..")
+    SDL.DestroyTexture(background)
   }
 
 	append(&game.entities, Entity{type = .PLAYER, texture = player})
@@ -228,13 +235,13 @@ main :: proc() {
 			}
 		}
 
-		SDL.SetRenderDrawColor(game.renderer, 0, 0, 0, 0)
-		SDL.RenderClear(game.renderer)
+		SDL.RenderCopy(game.renderer, background, nil, nil)
 
 		for _, i in game.entities {
 			render_entity(&game.entities[i], &game)
 		}
 
 		SDL.RenderPresent(game.renderer)
+    SDL.RenderClear(game.renderer)
 	}
 }
