@@ -190,18 +190,18 @@ main :: proc() {
 	}
 
 	player := SDL_IMG.LoadTexture(game.renderer, "assets/images/player.png")
-  assert(player != nil, string(SDL_IMG.GetError()))
-  defer {
+	assert(player != nil, string(SDL_IMG.GetError()))
+	defer {
 		fmt.println("Destroying player texture..")
-    SDL.DestroyTexture(player)
-  }
+		SDL.DestroyTexture(player)
+	}
 
 	background := SDL_IMG.LoadTexture(game.renderer, "assets/images/background.png")
-  assert(background != nil, string(SDL_IMG.GetError()))
-  defer {
+	assert(background != nil, string(SDL_IMG.GetError()))
+	defer {
 		fmt.println("Destroying background texture..")
-    SDL.DestroyTexture(background)
-  }
+		SDL.DestroyTexture(background)
+	}
 
 	append(&game.entities, Entity{type = .PLAYER, texture = player})
 
@@ -241,6 +241,6 @@ main :: proc() {
 		}
 
 		SDL.RenderPresent(game.renderer)
-    SDL.RenderClear(game.renderer)
+		SDL.RenderClear(game.renderer)
 	}
 }
