@@ -33,7 +33,7 @@ EntityState :: enum {
 	STANDING,
 	WALKING,
 	JUMPING,
-  FALLING,
+	FALLING,
 }
 
 EntityType :: enum {
@@ -43,7 +43,8 @@ EntityType :: enum {
 Entity :: struct {
 	type:              EntityType,
 	state:             EntityState,
-	texture:           ^SDL.Texture,
+	texture_left:      ^SDL.Texture,
+	texture_right:     ^SDL.Texture,
 	jump_pressed_time: f64,
 	jumped:            bool,
 	dir:               f32,
@@ -53,18 +54,23 @@ Entity :: struct {
 	prev_vel:          [2]f32,
 	vel:               [2]f32,
 	grounded:          bool,
+	facing:            i32,
 }
 
 render_entity :: proc(entity: ^Entity, game: ^Game) {
 	switch entity.type {
 	case .PLAYER:
+		entity_rect := &SDL.FRect{x = entity.pos.x, y = entity.pos.y, w = 50, h = 50}
+    texture : ^SDL.Texture
+
+    if entity.facing == 1 {
+      texture = entity.texture_right
+    } else {
+      texture = entity.texture_left
+    }
+
 		SDL.SetRenderDrawColor(game.renderer, 255, 0, 255, 0)
-		SDL.RenderCopyF(
-			game.renderer,
-			entity.texture,
-			nil,
-			&SDL.FRect{x = entity.pos.x, y = entity.pos.y, w = 50, h = 50},
-		)
+		SDL.RenderCopyF(game.renderer, texture, nil, entity_rect)
 	}
 }
 
@@ -75,7 +81,7 @@ update_entity :: proc(entity: ^Entity, game: ^Game) {
 		entity.prev_vel = entity.vel
 		entity.prev_dir = entity.dir
 
-    apply_movement(entity, game)
+		apply_movement(entity, game)
 	}
 }
 
@@ -117,10 +123,12 @@ apply_movement :: proc(entity: ^Entity, game: ^Game) {
 	entity.dir = 0.0
 	if b8(game.keyboard[SDL.SCANCODE_D]) | b8(game.keyboard[SDL.SCANCODE_RIGHT]) {
 		entity.dir = 1
+		entity.facing = 1
 	}
 
 	if b8(game.keyboard[SDL.SCANCODE_A]) | b8(game.keyboard[SDL.SCANCODE_LEFT]) {
 		entity.dir = -1
+		entity.facing = -1
 	}
 
 	if entity.dir != 0.0 {
@@ -151,15 +159,15 @@ apply_movement :: proc(entity: ^Entity, game: ^Game) {
 		entity.grounded = false
 	}
 
-  if entity.vel.x > 0 && entity.grounded {
-    entity.state = .WALKING
-  } else if entity.vel.x == 0 && entity.grounded {
-    entity.state = .STANDING
-  } else if entity.vel.y > 0 {
-    entity.state = .JUMPING
-  } else if entity.vel.y < 0 {
-    entity.state = .FALLING
-  }
+	if entity.vel.x > 0 && entity.grounded {
+		entity.state = .WALKING
+	} else if entity.vel.x == 0 && entity.grounded {
+		entity.state = .STANDING
+	} else if entity.vel.y > 0 {
+		entity.state = .JUMPING
+	} else if entity.vel.y < 0 {
+		entity.state = .FALLING
+	}
 }
 
 // Find first occurence of entity in game
@@ -222,11 +230,18 @@ main :: proc() {
 		SDL.DestroyRenderer(game.renderer)
 	}
 
-	player := SDL_IMG.LoadTexture(game.renderer, "assets/images/player.png")
-	assert(player != nil, string(SDL_IMG.GetError()))
+	texture_right := SDL_IMG.LoadTexture(game.renderer, "assets/images/player-right.png")
+	assert(texture_right != nil, string(SDL_IMG.GetError()))
 	defer {
-		fmt.println("Destroying player texture..")
-		SDL.DestroyTexture(player)
+		fmt.println("Destroying player right texture..")
+		SDL.DestroyTexture(texture_right)
+	}
+
+	texture_left := SDL_IMG.LoadTexture(game.renderer, "assets/images/player-left.png")
+	assert(texture_left != nil, string(SDL_IMG.GetError()))
+	defer {
+		fmt.println("Destroying player left texture..")
+		SDL.DestroyTexture(texture_left)
 	}
 
 	background := SDL_IMG.LoadTexture(game.renderer, "assets/images/background.png")
@@ -236,7 +251,7 @@ main :: proc() {
 		SDL.DestroyTexture(background)
 	}
 
-	append(&game.entities, Entity{type = .PLAYER, texture = player})
+	append(&game.entities, Entity{type = .PLAYER, texture_right = texture_right, texture_left = texture_left, facing = 1})
 
 	event := SDL.Event{}
 
