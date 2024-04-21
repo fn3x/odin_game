@@ -18,6 +18,8 @@ MAX_JUMP_TIME_THRESHOLD :: 140
 MIN_JUMP_TIME_THRESHOLD :: 10
 
 VELOCITY_GAIN :: 1.0
+STOPPING_SPEED_GROUND :: 0.05
+STOPPING_SPEED_AIR :: 0.005
 
 Game :: struct {
 	renderer: ^SDL.Renderer,
@@ -124,9 +126,9 @@ update_entity :: proc(entity: ^Entity, game: ^Game) {
 			entity.dir = entity.prev_dir
 
 			if entity.grounded {
-				entity.vel.x -= 0.1
+				entity.vel.x -= STOPPING_SPEED_GROUND
 			} else { 	// in air
-				entity.vel.x -= 0.005
+				entity.vel.x -= STOPPING_SPEED_AIR 
 			}
 		}
 
