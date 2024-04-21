@@ -72,7 +72,7 @@ update_entity :: proc(entity: ^Entity, game: ^Game) {
 	case .PLAYER:
 		entity.prev_pos = entity.pos
 		entity.prev_vel = entity.vel
-    entity.prev_dir = entity.dir
+		entity.prev_dir = entity.dir
 
 		jump_pressed :=
 			b8(game.keyboard[SDL.SCANCODE_W]) |
@@ -107,7 +107,7 @@ update_entity :: proc(entity: ^Entity, game: ^Game) {
 			entity.vel.y -= GRAVITY
 		}
 
-    entity.dir = 0.0
+		entity.dir = 0.0
 		if b8(game.keyboard[SDL.SCANCODE_D]) | b8(game.keyboard[SDL.SCANCODE_RIGHT]) {
 			entity.dir = 1
 		}
@@ -116,21 +116,21 @@ update_entity :: proc(entity: ^Entity, game: ^Game) {
 			entity.dir = -1
 		}
 
-    if entity.dir != 0.0 {
-      entity.vel.x += VELOCITY_GAIN
-    }
+		if entity.dir != 0.0 {
+			entity.vel.x += VELOCITY_GAIN
+		}
 
-    if entity.prev_vel.x > 0.0 && entity.dir == 0.0 {
-      entity.dir = entity.prev_dir
+		if entity.prev_vel.x > 0.0 && entity.dir == 0.0 {
+			entity.dir = entity.prev_dir
 
-      if entity.grounded {
-        entity.vel.x -= 0.1
-      } else { // in air
-        entity.vel.x -= 0.005
-      }
-    }
+			if entity.grounded {
+				entity.vel.x -= 0.1
+			} else { 	// in air
+				entity.vel.x -= 0.005
+			}
+		}
 
-    entity.vel.x = clamp(entity.vel.x, 0, VELOCITY_GAIN)
+		entity.vel.x = clamp(entity.vel.x, 0, VELOCITY_GAIN)
 
 		entity.pos.x += entity.dir * entity.vel.x * dt
 		entity.pos.y -= entity.vel.y * dt
