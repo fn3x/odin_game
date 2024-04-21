@@ -11,7 +11,7 @@ WINDOW_HEIGHT :: 1080
 WINDOW_FLAGS :: SDL.WINDOW_SHOWN | SDL.WINDOW_RESIZABLE
 RENDER_FLAGS :: SDL.RENDERER_ACCELERATED
 
-GRAVITY :: 0.08
+GRAVITY :: 0.1
 JUMP_SPEED :: 1.8
 JUMP_ACCELERATION :: 0.1
 MAX_JUMP_TIME_THRESHOLD :: 140
@@ -43,6 +43,8 @@ Entity :: struct {
 	texture:           ^SDL.Texture,
 	jump_pressed_time: f64,
 	jumped:            bool,
+	dir:               f32,
+	prev_dir:          f32,
 	prev_pos:          [2]f32,
 	pos:               [2]f32,
 	prev_vel:          [2]f32,
@@ -70,6 +72,7 @@ update_entity :: proc(entity: ^Entity, game: ^Game) {
 	case .PLAYER:
 		entity.prev_pos = entity.pos
 		entity.prev_vel = entity.vel
+    entity.prev_dir = entity.dir
 
 		jump_pressed :=
 			b8(game.keyboard[SDL.SCANCODE_W]) |
@@ -104,16 +107,32 @@ update_entity :: proc(entity: ^Entity, game: ^Game) {
 			entity.vel.y -= GRAVITY
 		}
 
-		dir: f32 = 0.0
+    entity.dir = 0.0
 		if b8(game.keyboard[SDL.SCANCODE_D]) | b8(game.keyboard[SDL.SCANCODE_RIGHT]) {
-			dir += 1
+			entity.dir = 1
 		}
 
 		if b8(game.keyboard[SDL.SCANCODE_A]) | b8(game.keyboard[SDL.SCANCODE_LEFT]) {
-			dir -= 1
+			entity.dir = -1
 		}
 
-		entity.pos.x += dir * VELOCITY_GAIN * dt
+    if entity.dir != 0.0 {
+      entity.vel.x += VELOCITY_GAIN
+    }
+
+    if entity.prev_vel.x > 0.0 && entity.dir == 0.0 {
+      entity.dir = entity.prev_dir
+
+      if entity.grounded {
+        entity.vel.x -= 0.1
+      } else { // in air
+        entity.vel.x -= 0.005
+      }
+    }
+
+    entity.vel.x = clamp(entity.vel.x, 0, VELOCITY_GAIN)
+
+		entity.pos.x += entity.dir * entity.vel.x * dt
 		entity.pos.y -= entity.vel.y * dt
 
 		entity.pos.x = clamp(entity.pos.x, 0, WINDOW_WIDTH - 50)
