@@ -30,9 +30,10 @@ Game :: struct {
 }
 
 EntityState :: enum {
-	STAND,
-	WALK,
-	JUMP,
+	STANDING,
+	WALKING,
+	JUMPING,
+  FALLING,
 }
 
 EntityType :: enum {
@@ -68,84 +69,97 @@ render_entity :: proc(entity: ^Entity, game: ^Game) {
 }
 
 update_entity :: proc(entity: ^Entity, game: ^Game) {
-	dt := f32(game.dt)
-
 	switch entity.type {
 	case .PLAYER:
 		entity.prev_pos = entity.pos
 		entity.prev_vel = entity.vel
 		entity.prev_dir = entity.dir
 
-		jump_pressed :=
-			b8(game.keyboard[SDL.SCANCODE_W]) |
-			b8(game.keyboard[SDL.SCANCODE_UP]) |
-			b8(game.keyboard[SDL.SCANCODE_SPACE])
+    apply_movement(entity, game)
+	}
+}
 
-		if !jump_pressed {
-			entity.jumped = false
-		}
+apply_movement :: proc(entity: ^Entity, game: ^Game) {
+	dt := f32(game.dt)
 
-		if jump_pressed {
-			entity.jump_pressed_time += game.dt
-		} else {
-			entity.jump_pressed_time = 0
-			entity.state = .STAND
-		}
+	jump_pressed :=
+		b8(game.keyboard[SDL.SCANCODE_W]) |
+		b8(game.keyboard[SDL.SCANCODE_UP]) |
+		b8(game.keyboard[SDL.SCANCODE_SPACE])
 
-		if entity.grounded && jump_pressed && entity.state != .JUMP {
-			entity.vel.y = JUMP_SPEED
-			entity.state = .JUMP
-			entity.jumped = true
-		}
+	if !jump_pressed {
+		entity.jumped = false
+	}
 
-		if entity.jumped &&
-		   entity.state == .JUMP &&
-		   entity.jump_pressed_time < MAX_JUMP_TIME_THRESHOLD &&
-		   entity.jump_pressed_time > MIN_JUMP_TIME_THRESHOLD {
-			entity.vel.y += JUMP_ACCELERATION
-		}
+	if jump_pressed {
+		entity.jump_pressed_time += game.dt
+	} else {
+		entity.jump_pressed_time = 0
+	}
 
-		if !entity.grounded {
-			entity.vel.y -= GRAVITY
-		}
+	if entity.grounded && jump_pressed && entity.state != .JUMPING {
+		entity.vel.y = JUMP_SPEED
+		entity.state = .JUMPING
+		entity.jumped = true
+	}
 
-		entity.dir = 0.0
-		if b8(game.keyboard[SDL.SCANCODE_D]) | b8(game.keyboard[SDL.SCANCODE_RIGHT]) {
-			entity.dir = 1
-		}
+	if entity.jumped &&
+	   entity.state == .JUMPING &&
+	   entity.jump_pressed_time < MAX_JUMP_TIME_THRESHOLD &&
+	   entity.jump_pressed_time > MIN_JUMP_TIME_THRESHOLD {
+		entity.vel.y += JUMP_ACCELERATION
+	}
 
-		if b8(game.keyboard[SDL.SCANCODE_A]) | b8(game.keyboard[SDL.SCANCODE_LEFT]) {
-			entity.dir = -1
-		}
+	if !entity.grounded {
+		entity.vel.y -= GRAVITY
+	}
 
-		if entity.dir != 0.0 {
-			entity.vel.x += VELOCITY_GAIN
-		}
+	entity.dir = 0.0
+	if b8(game.keyboard[SDL.SCANCODE_D]) | b8(game.keyboard[SDL.SCANCODE_RIGHT]) {
+		entity.dir = 1
+	}
 
-		if entity.prev_vel.x > 0.0 && entity.dir == 0.0 {
-			entity.dir = entity.prev_dir
+	if b8(game.keyboard[SDL.SCANCODE_A]) | b8(game.keyboard[SDL.SCANCODE_LEFT]) {
+		entity.dir = -1
+	}
 
-			if entity.grounded {
-				entity.vel.x -= STOPPING_SPEED_GROUND
-			} else { 	// in air
-				entity.vel.x -= STOPPING_SPEED_AIR 
-			}
-		}
+	if entity.dir != 0.0 {
+		entity.vel.x += VELOCITY_GAIN
+	}
 
-		entity.vel.x = clamp(entity.vel.x, 0, VELOCITY_GAIN)
+	if entity.prev_vel.x > 0.0 && entity.dir == 0.0 {
+		entity.dir = entity.prev_dir
 
-		entity.pos.x += entity.dir * entity.vel.x * dt
-		entity.pos.y -= entity.vel.y * dt
-
-		entity.pos.x = clamp(entity.pos.x, 0, WINDOW_WIDTH - 50)
-		entity.pos.y = clamp(entity.pos.y, 0, WINDOW_HEIGHT - 50)
-
-		if entity.pos.y >= WINDOW_HEIGHT - 50 {
-			entity.grounded = true
-		} else {
-			entity.grounded = false
+		if entity.grounded {
+			entity.vel.x -= STOPPING_SPEED_GROUND
+		} else { 	// in air
+			entity.vel.x -= STOPPING_SPEED_AIR
 		}
 	}
+
+	entity.vel.x = clamp(entity.vel.x, 0, VELOCITY_GAIN)
+
+	entity.pos.x += entity.dir * entity.vel.x * dt
+	entity.pos.y -= entity.vel.y * dt
+
+	entity.pos.x = clamp(entity.pos.x, 0, WINDOW_WIDTH - 50)
+	entity.pos.y = clamp(entity.pos.y, 0, WINDOW_HEIGHT - 50)
+
+	if entity.pos.y >= WINDOW_HEIGHT - 50 {
+		entity.grounded = true
+	} else {
+		entity.grounded = false
+	}
+
+  if entity.vel.x > 0 && entity.grounded {
+    entity.state = .WALKING
+  } else if entity.vel.x == 0 && entity.grounded {
+    entity.state = .STANDING
+  } else if entity.vel.y > 0 {
+    entity.state = .JUMPING
+  } else if entity.vel.y < 0 {
+    entity.state = .FALLING
+  }
 }
 
 // Find first occurence of entity in game
@@ -197,7 +211,7 @@ main :: proc() {
 
 	defer {
 		fmt.println("Deleting game entities..")
-		delete(game.entities)
+		clear(&game.entities)
 		fmt.println("Deleting game keyboard..")
 		delete(game.keyboard)
 	}
