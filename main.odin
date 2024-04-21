@@ -52,6 +52,7 @@ Entity :: struct {
 	texture_right:     ^SDL.Texture,
 	jump_pressed_time: f64,
 	jumped:            bool,
+	can_jump:          bool,
 	dir:               f32,
 	prev_dir:          f32,
 	prev_pos:          [2]f32,
@@ -65,14 +66,19 @@ Entity :: struct {
 render_entity :: proc(entity: ^Entity, game: ^Game) {
 	switch entity.type {
 	case .PLAYER:
-		entity_rect := &SDL.FRect{x = entity.pos.x, y = entity.pos.y, w = PLAYER_WIDTH, h = PLAYER_HEIGHT}
-    texture : ^SDL.Texture
+		entity_rect := &SDL.FRect {
+			x = entity.pos.x,
+			y = entity.pos.y,
+			w = PLAYER_WIDTH,
+			h = PLAYER_HEIGHT,
+		}
+		texture: ^SDL.Texture
 
-    if entity.facing == 1 {
-      texture = entity.texture_right
-    } else {
-      texture = entity.texture_left
-    }
+		if entity.facing == 1 {
+			texture = entity.texture_right
+		} else {
+			texture = entity.texture_left
+		}
 
 		SDL.SetRenderDrawColor(game.renderer, 255, 0, 255, 0)
 		SDL.RenderCopyF(game.renderer, texture, nil, entity_rect)
@@ -98,9 +104,13 @@ apply_movement :: proc(entity: ^Entity, game: ^Game) {
 		b8(game.keyboard[SDL.SCANCODE_UP]) |
 		b8(game.keyboard[SDL.SCANCODE_SPACE])
 
-	if !jump_pressed {
-		entity.jumped = false
+	if !jump_pressed && entity.grounded {
+		entity.can_jump = true
 	}
+
+  if !jump_pressed {
+    entity.jumped = false
+  }
 
 	if jump_pressed {
 		entity.jump_pressed_time += game.dt
@@ -108,16 +118,17 @@ apply_movement :: proc(entity: ^Entity, game: ^Game) {
 		entity.jump_pressed_time = 0
 	}
 
-	if !entity.jumped && entity.grounded && jump_pressed && entity.state != .JUMPING {
+	if !entity.jumped && entity.can_jump && entity.grounded && jump_pressed && entity.state != .JUMPING {
 		entity.vel.y = JUMP_SPEED
 		entity.state = .JUMPING
 		entity.jumped = true
+    entity.can_jump = false
 	}
 
 	if entity.jumped &&
 	   entity.state == .JUMPING &&
-	   entity.jump_pressed_time < MAX_JUMP_TIME_THRESHOLD &&
-	   entity.jump_pressed_time > MIN_JUMP_TIME_THRESHOLD {
+	   entity.jump_pressed_time > MIN_JUMP_TIME_THRESHOLD &&
+	   entity.jump_pressed_time < MAX_JUMP_TIME_THRESHOLD {
 		entity.vel.y += JUMP_ACCELERATION
 	}
 
@@ -168,8 +179,6 @@ apply_movement :: proc(entity: ^Entity, game: ^Game) {
 		entity.state = .WALKING
 	} else if entity.vel.x == 0 && entity.grounded {
 		entity.state = .STANDING
-	} else if entity.vel.y > 0 {
-		entity.state = .JUMPING
 	} else if entity.vel.y < 0 {
 		entity.state = .FALLING
 	}
@@ -256,7 +265,15 @@ main :: proc() {
 		SDL.DestroyTexture(background)
 	}
 
-	append(&game.entities, Entity{type = .PLAYER, texture_right = texture_right, texture_left = texture_left, facing = 1})
+	append(
+		&game.entities,
+		Entity {
+			type = .PLAYER,
+			texture_right = texture_right,
+			texture_left = texture_left,
+			facing = 1,
+		},
+	)
 
 	event := SDL.Event{}
 
