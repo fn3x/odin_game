@@ -13,7 +13,7 @@ RENDER_FLAGS :: SDL.RENDERER_ACCELERATED
 
 GRAVITY :: 0.08
 JUMP_SPEED :: 1.8
-JUMP_ACCELERATION :: 0.05
+JUMP_ACCELERATION :: 0.1
 MAX_JUMP_TIME_THRESHOLD :: 140
 MIN_JUMP_TIME_THRESHOLD :: 10
 
@@ -100,9 +100,7 @@ update_entity :: proc(entity: ^Entity, game: ^Game) {
 			entity.vel.y += JUMP_ACCELERATION
 		}
 
-		if !entity.grounded &&
-		   (entity.jump_pressed_time > MAX_JUMP_TIME_THRESHOLD ||
-				   entity.jump_pressed_time < MIN_JUMP_TIME_THRESHOLD) {
+		if !entity.grounded {
 			entity.vel.y -= GRAVITY
 		}
 
