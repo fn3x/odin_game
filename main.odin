@@ -108,7 +108,7 @@ apply_movement :: proc(entity: ^Entity, game: ^Game) {
 		entity.jump_pressed_time = 0
 	}
 
-	if entity.grounded && jump_pressed && entity.state != .JUMPING {
+	if !entity.jumped && entity.grounded && jump_pressed && entity.state != .JUMPING {
 		entity.vel.y = JUMP_SPEED
 		entity.state = .JUMPING
 		entity.jumped = true
