@@ -11,6 +11,11 @@ WINDOW_HEIGHT :: 1080
 WINDOW_FLAGS :: SDL.WINDOW_SHOWN | SDL.WINDOW_RESIZABLE
 RENDER_FLAGS :: SDL.RENDERER_ACCELERATED
 
+GROUND_HEIGHT :: 100
+
+PLAYER_HEIGHT :: 100
+PLAYER_WIDTH :: 100
+
 GRAVITY :: 0.1
 JUMP_SPEED :: 1.8
 JUMP_ACCELERATION :: 0.1
@@ -60,7 +65,7 @@ Entity :: struct {
 render_entity :: proc(entity: ^Entity, game: ^Game) {
 	switch entity.type {
 	case .PLAYER:
-		entity_rect := &SDL.FRect{x = entity.pos.x, y = entity.pos.y, w = 50, h = 50}
+		entity_rect := &SDL.FRect{x = entity.pos.x, y = entity.pos.y, w = PLAYER_WIDTH, h = PLAYER_HEIGHT}
     texture : ^SDL.Texture
 
     if entity.facing == 1 {
@@ -150,10 +155,10 @@ apply_movement :: proc(entity: ^Entity, game: ^Game) {
 	entity.pos.x += entity.dir * entity.vel.x * dt
 	entity.pos.y -= entity.vel.y * dt
 
-	entity.pos.x = clamp(entity.pos.x, 0, WINDOW_WIDTH - 50)
-	entity.pos.y = clamp(entity.pos.y, 0, WINDOW_HEIGHT - 50)
+	entity.pos.x = clamp(entity.pos.x, 0, WINDOW_WIDTH - PLAYER_WIDTH)
+	entity.pos.y = clamp(entity.pos.y, 0, WINDOW_HEIGHT - GROUND_HEIGHT - PLAYER_HEIGHT)
 
-	if entity.pos.y >= WINDOW_HEIGHT - 50 {
+	if entity.pos.y >= WINDOW_HEIGHT - GROUND_HEIGHT - PLAYER_HEIGHT {
 		entity.grounded = true
 	} else {
 		entity.grounded = false
@@ -206,7 +211,7 @@ main :: proc() {
 		SDL.DestroyWindow(window)
 	}
 
-	tickrate := 128.0
+	tickrate := 240.0
 	ticktime := 1000.0 / tickrate
 
 	dt := 0.0
