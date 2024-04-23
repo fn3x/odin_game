@@ -16,6 +16,9 @@ GROUND_HEIGHT :: 100
 PLAYER_HEIGHT :: 100
 PLAYER_WIDTH :: 100
 
+WALL_HEIGHT :: WINDOW_HEIGHT
+WALL_WIDTH :: 100
+
 GRAVITY :: 0.1
 JUMP_SPEED :: 1.8
 JUMP_ACCELERATION :: 0.1
@@ -43,6 +46,7 @@ EntityState :: enum {
 
 EntityType :: enum {
 	PLAYER,
+	WALL,
 }
 
 Entity :: struct {
@@ -82,11 +86,22 @@ render_entity :: proc(entity: ^Entity, game: ^Game) {
 
 		SDL.SetRenderDrawColor(game.renderer, 255, 0, 255, 0)
 		SDL.RenderCopyF(game.renderer, texture, nil, entity_rect)
+
+	case .WALL:
+		entity_rect := &SDL.FRect {
+			x = WINDOW_WIDTH - WALL_WIDTH,
+			y = 0,
+			w = WALL_WIDTH,
+			h = WALL_HEIGHT,
+		}
+
+		SDL.SetRenderDrawColor(game.renderer, 0, 0, 0, 0)
+		SDL.RenderFillRectF(game.renderer, entity_rect)
 	}
 }
 
 update_entity :: proc(entity: ^Entity, game: ^Game) {
-	switch entity.type {
+	#partial switch entity.type {
 	case .PLAYER:
 		entity.prev_pos = entity.pos
 		entity.prev_vel = entity.vel
@@ -273,6 +288,9 @@ main :: proc() {
 			texture_left = texture_left,
 			facing = 1,
 		},
+		Entity {
+			type = .WALL,
+		}
 	)
 
 	event := SDL.Event{}
