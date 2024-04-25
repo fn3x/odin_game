@@ -17,7 +17,7 @@ PLAYER_HEIGHT :: 100
 PLAYER_WIDTH :: 100
 
 WALL_HEIGHT :: WINDOW_HEIGHT
-WALL_WIDTH :: 100
+WALL_WIDTH :: 400
 
 GRAVITY :: 0.1
 JUMP_SPEED :: 1.8
@@ -35,6 +35,7 @@ Game :: struct {
 	dt:       f64,
 	keyboard: []u8,
 	entities: [dynamic]Entity,
+	blocks:   [dynamic]Block,
 }
 
 EntityState :: enum {
@@ -46,7 +47,6 @@ EntityState :: enum {
 
 EntityType :: enum {
 	PLAYER,
-	WALL,
 }
 
 Entity :: struct {
@@ -65,6 +65,17 @@ Entity :: struct {
 	vel:               [2]f32,
 	grounded:          bool,
 	facing:            i32,
+}
+
+BlockType :: enum {
+	WALL,
+}
+
+Block :: struct {
+	type:    BlockType,
+	x, y:    f32,
+	w, h:    f32,
+	texture: ^SDL.Texture,
 }
 
 render_entity :: proc(entity: ^Entity, game: ^Game) {
@@ -86,17 +97,16 @@ render_entity :: proc(entity: ^Entity, game: ^Game) {
 
 		SDL.SetRenderDrawColor(game.renderer, 255, 0, 255, 0)
 		SDL.RenderCopyF(game.renderer, texture, nil, entity_rect)
+	}
+}
 
+render_block :: proc(block: ^Block, game: ^Game) {
+	switch block.type {
 	case .WALL:
-		entity_rect := &SDL.FRect {
-			x = WINDOW_WIDTH - WALL_WIDTH,
-			y = 0,
-			w = WALL_WIDTH,
-			h = WALL_HEIGHT,
-		}
+		wall_rect := &SDL.FRect{x = block.x, y = block.y, w = block.w, h = block.h}
 
-		SDL.SetRenderDrawColor(game.renderer, 0, 0, 0, 0)
-		SDL.RenderFillRectF(game.renderer, entity_rect)
+		SDL.SetRenderDrawColor(game.renderer, 255, 0, 255, 0)
+		SDL.RenderCopyF(game.renderer, block.texture, nil, wall_rect)
 	}
 }
 
@@ -123,9 +133,9 @@ apply_movement :: proc(entity: ^Entity, game: ^Game) {
 		entity.can_jump = true
 	}
 
-  if !jump_pressed {
-    entity.jumped = false
-  }
+	if !jump_pressed {
+		entity.jumped = false
+	}
 
 	if jump_pressed {
 		entity.jump_pressed_time += game.dt
@@ -133,11 +143,15 @@ apply_movement :: proc(entity: ^Entity, game: ^Game) {
 		entity.jump_pressed_time = 0
 	}
 
-	if !entity.jumped && entity.can_jump && entity.grounded && jump_pressed && entity.state != .JUMPING {
+	if !entity.jumped &&
+	   entity.can_jump &&
+	   entity.grounded &&
+	   jump_pressed &&
+	   entity.state != .JUMPING {
 		entity.vel.y = JUMP_SPEED
 		entity.state = .JUMPING
 		entity.jumped = true
-    entity.can_jump = false
+		entity.can_jump = false
 	}
 
 	if entity.jumped &&
@@ -247,7 +261,7 @@ main :: proc() {
 	}
 
 	defer {
-		fmt.println("Deleting game entities..")
+		fmt.println("Clearing game entities..")
 		clear(&game.entities)
 		fmt.println("Deleting game keyboard..")
 		delete(game.keyboard)
@@ -280,6 +294,13 @@ main :: proc() {
 		SDL.DestroyTexture(background)
 	}
 
+	wall := SDL_IMG.LoadTexture(game.renderer, "assets/images/wall.png")
+	assert(wall != nil, string(SDL_IMG.GetError()))
+	defer {
+		fmt.println("Destroying wall texture..")
+		SDL.DestroyTexture(wall)
+	}
+
 	append(
 		&game.entities,
 		Entity {
@@ -288,10 +309,20 @@ main :: proc() {
 			texture_left = texture_left,
 			facing = 1,
 		},
-		Entity {
-			type = .WALL,
-		}
 	)
+
+  append(&game.blocks,
+    Block {
+      type = .WALL,
+      texture = wall,
+      x = WINDOW_WIDTH - WALL_WIDTH,
+      y = 0,
+      w = WALL_WIDTH,
+      h = WALL_HEIGHT,
+    }
+  )
+
+	wall_rect := &SDL.FRect{x = WINDOW_WIDTH - WALL_WIDTH, y = 0, w = WALL_WIDTH, h = WALL_HEIGHT}
 
 	event := SDL.Event{}
 
@@ -327,6 +358,10 @@ main :: proc() {
 		for _, i in game.entities {
 			render_entity(&game.entities[i], &game)
 		}
+
+    for _, i in game.blocks {
+      render_block(&game.blocks[i], &game)
+    }
 
 		SDL.RenderPresent(game.renderer)
 		SDL.RenderClear(game.renderer)
