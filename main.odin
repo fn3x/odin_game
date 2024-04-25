@@ -311,16 +311,17 @@ main :: proc() {
 		},
 	)
 
-  append(&game.blocks,
-    Block {
-      type = .WALL,
-      texture = wall,
-      x = WINDOW_WIDTH - WALL_WIDTH,
-      y = 0,
-      w = WALL_WIDTH,
-      h = WALL_HEIGHT,
-    }
-  )
+	append(
+		&game.blocks,
+		Block {
+			type = .WALL,
+			texture = wall,
+			x = WINDOW_WIDTH - WALL_WIDTH,
+			y = 0,
+			w = WALL_WIDTH,
+			h = WALL_HEIGHT,
+		},
+	)
 
 	wall_rect := &SDL.FRect{x = WINDOW_WIDTH - WALL_WIDTH, y = 0, w = WALL_WIDTH, h = WALL_HEIGHT}
 
@@ -359,9 +360,9 @@ main :: proc() {
 			render_entity(&game.entities[i], &game)
 		}
 
-    for _, i in game.blocks {
-      render_block(&game.blocks[i], &game)
-    }
+		for _, i in game.blocks {
+			render_block(&game.blocks[i], &game)
+		}
 
 		SDL.RenderPresent(game.renderer)
 		SDL.RenderClear(game.renderer)
