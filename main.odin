@@ -131,52 +131,32 @@ render_block :: proc(block: ^Block, game: ^Game) {
 	}
 }
 
-check_collision :: proc(entity_a: ^Entity, entity_b: ^Entity) -> b8 {
-	// If any of the sides from A are otside of B
-	if entity_a.side_bottom <= entity_b.side_top {
+have_collided :: proc(entity_a: ^Entity, entity_b: ^Entity) -> b8 {
+	// If any of the sides from A are outside of B
+	if entity_a.side_bottom <= entity_b.side_top ||
+	   entity_a.side_top >= entity_b.side_bottom ||
+	   entity_a.side_right <= entity_b.side_left ||
+	   entity_a.side_left >= entity_b.side_right {
 		return false
-	}
-
-	if entity_a.side_top >= entity_b.side_bottom {
-		return false
-	}
-
-	if entity_a.side_right <= entity_b.side_left {
-		return false
-	}
-
-	if entity_a.side_left >= entity_b.side_right {
-		return false
-	}
-
+	   }
 	// If none of the sides from A are outside B
 	return true
 }
 
-check_collision_block :: proc(entity: ^Entity, block: ^Block) -> b8 {
-	// If any of the sides from A are otside of B
-	if entity.side_bottom <= block.side_top {
+has_collided :: proc(entity: ^Entity, block: ^Block) -> b8 {
+	// If any of the sides from A are outside of B
+	if entity.side_bottom <= block.side_top ||
+	   entity.side_top >= block.side_bottom ||
+	   entity.side_right <= block.side_left ||
+	   entity.side_left >= block.side_right {
 		return false
-	}
-
-	if entity.side_top >= block.side_bottom {
-		return false
-	}
-
-	if entity.side_right <= block.side_left {
-		return false
-	}
-
-	if entity.side_left >= block.side_right {
-		return false
-	}
-
+	   }
 	// If none of the sides from A are outside B
 	return true
 }
 
 update_entity :: proc(entity: ^Entity, game: ^Game) {
-	#partial switch entity.type {
+	switch entity.type {
 	case .PLAYER:
 		entity.prev_pos = entity.pos
 		entity.prev_vel = entity.vel
@@ -384,7 +364,7 @@ main :: proc() {
 			type = .WALL,
 			texture = wall,
 			x = WINDOW_WIDTH - WALL_WIDTH,
-			y = 0,
+			y = WALL_HEIGHT - 110,
 			w = WALL_WIDTH,
 			h = WALL_HEIGHT,
 		},
@@ -420,11 +400,13 @@ main :: proc() {
 				update_entity(&game.entities[i], &game)
 
 				for j := i + 1; j < len(game.entities); j += 1 {
-					check_collision(&game.entities[i], &game.entities[j])
+					have_collided(&game.entities[i], &game.entities[j])
 				}
 
 				for _, k in game.blocks {
-					check_collision_block(&game.entities[i], &game.blocks[k])
+					if has_collided(&game.entities[i], &game.blocks[k]) {
+						game.entities[i].pos = game.entities[i].prev_pos
+ 					}
 				}
 			}
 		}
