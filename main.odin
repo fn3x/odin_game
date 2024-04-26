@@ -30,13 +30,13 @@ STOPPING_SPEED_GROUND :: 0.05
 STOPPING_SPEED_AIR :: 0.005
 
 Game :: struct {
-	renderer: ^SDL.Renderer,
-	time:     f64,
-	dt:       f64,
-	keyboard: []u8,
-	entities: [dynamic]Entity,
-	blocks:   [dynamic]Block,
-	collisions: [][]bool 
+	renderer:   ^SDL.Renderer,
+	time:       f64,
+	dt:         f64,
+	keyboard:   []u8,
+	entities:   [dynamic]Entity,
+	blocks:     [dynamic]Block,
+	collisions: [][]bool,
 }
 
 EntityState :: enum {
@@ -66,10 +66,10 @@ Entity :: struct {
 	vel:               [2]f32,
 	grounded:          bool,
 	facing:            i32,
-	side_left:		   f32,
-	side_right:	       f32,
-	side_top:	       f32,
-	side_bottom:	   f32,
+	side_left:         f32,
+	side_right:        f32,
+	side_top:          f32,
+	side_bottom:       f32,
 }
 
 BlockType :: enum {
@@ -77,14 +77,14 @@ BlockType :: enum {
 }
 
 Block :: struct {
-	type:    BlockType,
-	x, y:    f32,
-	w, h:    f32,
-	texture: ^SDL.Texture,
-	side_left:		   f32,
-	side_right:	       f32,
-	side_top:	       f32,
-	side_bottom:	   f32,
+	type:        BlockType,
+	x, y:        f32,
+	w, h:        f32,
+	texture:     ^SDL.Texture,
+	side_left:   f32,
+	side_right:  f32,
+	side_top:    f32,
+	side_bottom: f32,
 }
 
 render_entity :: proc(entity: ^Entity, game: ^Game) {
@@ -134,45 +134,45 @@ render_block :: proc(block: ^Block, game: ^Game) {
 check_collision :: proc(entity_a: ^Entity, entity_b: ^Entity) -> b8 {
 	// If any of the sides from A are otside of B
 	if entity_a.side_bottom <= entity_b.side_top {
-		return false;
+		return false
 	}
 
 	if entity_a.side_top >= entity_b.side_bottom {
-		return false;
+		return false
 	}
 
 	if entity_a.side_right <= entity_b.side_left {
-		return false;
+		return false
 	}
 
 	if entity_a.side_left >= entity_b.side_right {
-		return false;
+		return false
 	}
 
 	// If none of the sides from A are outside B
-	return true;
+	return true
 }
 
 check_collision_block :: proc(entity: ^Entity, block: ^Block) -> b8 {
 	// If any of the sides from A are otside of B
 	if entity.side_bottom <= block.side_top {
-		return false;
+		return false
 	}
 
 	if entity.side_top >= block.side_bottom {
-		return false;
+		return false
 	}
 
 	if entity.side_right <= block.side_left {
-		return false;
+		return false
 	}
 
 	if entity.side_left >= block.side_right {
-		return false;
+		return false
 	}
 
 	// If none of the sides from A are outside B
-	return true;
+	return true
 }
 
 update_entity :: proc(entity: ^Entity, game: ^Game) {
@@ -328,8 +328,8 @@ main :: proc() {
 	defer {
 		fmt.println("Clearing game entities..")
 		clear(&game.entities)
-    fmt.println("Clearing game blocks..")
-    clear(&game.blocks)
+		fmt.println("Clearing game blocks..")
+		clear(&game.blocks)
 		fmt.println("Deleting game keyboard..")
 		delete(game.keyboard)
 	}
@@ -423,9 +423,9 @@ main :: proc() {
 					check_collision(&game.entities[i], &game.entities[j])
 				}
 
-        for _, k in game.blocks {
-          check_collision_block(&game.entities[i], &game.blocks[k])
-        }
+				for _, k in game.blocks {
+					check_collision_block(&game.entities[i], &game.blocks[k])
+				}
 			}
 		}
 
