@@ -30,12 +30,13 @@ STOPPING_SPEED_GROUND :: 0.05
 STOPPING_SPEED_AIR :: 0.005
 
 Game :: struct {
-	renderer:   ^SDL.Renderer,
-	time:       f64,
-	dt:         f64,
-	keyboard:   []u8,
-	entities:   [dynamic]Entity,
-	blocks:     [dynamic]Block,
+	renderer: ^SDL.Renderer,
+	time:     f64,
+	dt:       f64,
+	keyboard: []u8,
+	entities: [dynamic]Entity,
+	blocks:   [dynamic]Block,
+	collisions: [][]bool 
 }
 
 EntityState :: enum {
@@ -65,6 +66,10 @@ Entity :: struct {
 	vel:               [2]f32,
 	grounded:          bool,
 	facing:            i32,
+	side_left:		   f32,
+	side_right:	       f32,
+	side_top:	       f32,
+	side_bottom:	   f32,
 }
 
 BlockType :: enum {
@@ -76,6 +81,10 @@ Block :: struct {
 	x, y:    f32,
 	w, h:    f32,
 	texture: ^SDL.Texture,
+	side_left:		   f32,
+	side_right:	       f32,
+	side_top:	       f32,
+	side_bottom:	   f32,
 }
 
 render_entity :: proc(entity: ^Entity, game: ^Game) {
@@ -95,6 +104,12 @@ render_entity :: proc(entity: ^Entity, game: ^Game) {
 			texture = entity.texture_left
 		}
 
+		// Collision box
+		entity.side_left = entity_rect.x
+		entity.side_right = entity_rect.x + entity_rect.w
+		entity.side_top = entity_rect.y
+		entity.side_bottom = entity_rect.y + entity_rect.h
+
 		SDL.SetRenderDrawColor(game.renderer, 255, 0, 255, 0)
 		SDL.RenderCopyF(game.renderer, texture, nil, entity_rect)
 	}
@@ -105,9 +120,59 @@ render_block :: proc(block: ^Block, game: ^Game) {
 	case .WALL:
 		wall_rect := &SDL.FRect{x = block.x, y = block.y, w = block.w, h = block.h}
 
+		// Collision box
+		block.side_left = wall_rect.x
+		block.side_right = wall_rect.x + wall_rect.w
+		block.side_top = wall_rect.y
+		block.side_bottom = wall_rect.y + wall_rect.h
+
 		SDL.SetRenderDrawColor(game.renderer, 255, 0, 255, 0)
 		SDL.RenderCopyF(game.renderer, block.texture, nil, wall_rect)
 	}
+}
+
+check_collision :: proc(entity_a: ^Entity, entity_b: ^Entity) -> b8 {
+	// If any of the sides from A are otside of B
+	if entity_a.side_bottom <= entity_b.side_top {
+		return false;
+	}
+
+	if entity_a.side_top >= entity_b.side_bottom {
+		return false;
+	}
+
+	if entity_a.side_right <= entity_b.side_left {
+		return false;
+	}
+
+	if entity_a.side_left >= entity_b.side_right {
+		return false;
+	}
+
+	// If none of the sides from A are outside B
+	return true;
+}
+
+check_collision_block :: proc(entity: ^Entity, block: ^Block) -> b8 {
+	// If any of the sides from A are otside of B
+	if entity.side_bottom <= block.side_top {
+		return false;
+	}
+
+	if entity.side_top >= block.side_bottom {
+		return false;
+	}
+
+	if entity.side_right <= block.side_left {
+		return false;
+	}
+
+	if entity.side_left >= block.side_right {
+		return false;
+	}
+
+	// If none of the sides from A are outside B
+	return true;
 }
 
 update_entity :: proc(entity: ^Entity, game: ^Game) {
@@ -211,12 +276,6 @@ apply_movement :: proc(entity: ^Entity, game: ^Game) {
 	} else if entity.vel.y < 0 {
 		entity.state = .FALLING
 	}
-}
-
-check_collision :: proc(entity_a: ^Entity, entity_b: ^Entity) {
-}
-
-check_collision_block :: proc(entity: ^Entity, block: ^Block) {
 }
 
 // Find first occurence of entity in game
