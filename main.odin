@@ -30,12 +30,12 @@ STOPPING_SPEED_GROUND :: 0.05
 STOPPING_SPEED_AIR :: 0.005
 
 Game :: struct {
-	renderer: ^SDL.Renderer,
-	time:     f64,
-	dt:       f64,
-	keyboard: []u8,
-	entities: [dynamic]Entity,
-	blocks:   [dynamic]Block,
+	renderer:   ^SDL.Renderer,
+	time:       f64,
+	dt:         f64,
+	keyboard:   []u8,
+	entities:   [dynamic]Entity,
+	blocks:     [dynamic]Block,
 }
 
 EntityState :: enum {
@@ -213,6 +213,12 @@ apply_movement :: proc(entity: ^Entity, game: ^Game) {
 	}
 }
 
+check_collision :: proc(entity_a: ^Entity, entity_b: ^Entity) {
+}
+
+check_collision_block :: proc(entity: ^Entity, block: ^Block) {
+}
+
 // Find first occurence of entity in game
 find_entity :: proc(type: EntityType, game: ^Game) -> ^Entity {
 	for _, i in game.entities {
@@ -263,6 +269,8 @@ main :: proc() {
 	defer {
 		fmt.println("Clearing game entities..")
 		clear(&game.entities)
+    fmt.println("Clearing game blocks..")
+    clear(&game.blocks)
 		fmt.println("Deleting game keyboard..")
 		delete(game.keyboard)
 	}
@@ -351,6 +359,14 @@ main :: proc() {
 
 			for _, i in game.entities {
 				update_entity(&game.entities[i], &game)
+
+				for j := i + 1; j < len(game.entities); j += 1 {
+					check_collision(&game.entities[i], &game.entities[j])
+				}
+
+        for _, k in game.blocks {
+          check_collision_block(&game.entities[i], &game.blocks[k])
+        }
 			}
 		}
 
