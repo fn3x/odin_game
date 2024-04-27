@@ -16,8 +16,8 @@ GROUND_HEIGHT :: 100
 PLAYER_HEIGHT :: 100
 PLAYER_WIDTH :: 100
 
-WALL_HEIGHT :: WINDOW_HEIGHT
-WALL_WIDTH :: 400
+WALL_HEIGHT :: 200
+WALL_WIDTH :: 200
 
 GRAVITY :: 0.1
 JUMP_SPEED :: 1.8
@@ -29,14 +29,27 @@ VELOCITY_GAIN :: 1.0
 STOPPING_SPEED_GROUND :: 0.05
 STOPPING_SPEED_AIR :: 0.005
 
-Game :: struct {
-	renderer:   ^SDL.Renderer,
-	time:       f64,
-	dt:         f64,
-	keyboard:   []u8,
-	entities:   [dynamic]Entity,
-	blocks:     [dynamic]Block,
-	collisions: [][]bool,
+CollisionBox :: struct {
+	x, y: f32,
+	w, h: f32,
+}
+
+Collider :: union {
+	^Entity,
+	^Block,
+}
+
+CollisionSide :: enum {
+	TOP,
+	BOTTOM,
+	LEFT,
+	RIGHT,
+}
+
+Collision :: struct {
+	collider:       Collider,
+	other_collider: Collider,
+	side:           CollisionSide,
 }
 
 EntityState :: enum {
@@ -65,37 +78,36 @@ Entity :: struct {
 	prev_vel:          [2]f32,
 	vel:               [2]f32,
 	grounded:          bool,
-	facing:            i32,
-	side_left:         f32,
-	side_right:        f32,
-	side_top:          f32,
-	side_bottom:       f32,
+	facing:            i8,
+	collision_box:     ^CollisionBox,
 }
 
 BlockType :: enum {
 	WALL,
+	GROUND,
 }
 
 Block :: struct {
-	type:        BlockType,
-	x, y:        f32,
-	w, h:        f32,
-	texture:     ^SDL.Texture,
-	side_left:   f32,
-	side_right:  f32,
-	side_top:    f32,
-	side_bottom: f32,
+	type:          BlockType,
+	x, y:          f32,
+	w, h:          f32,
+	texture:       ^SDL.Texture,
+	collision_box: ^CollisionBox,
+}
+
+Game :: struct {
+	renderer: ^SDL.Renderer,
+	time:     f64,
+	dt:       f64,
+	keyboard: []u8,
+	entities: [dynamic]Entity,
+	blocks:   [dynamic]Block,
 }
 
 render_entity :: proc(entity: ^Entity, game: ^Game) {
 	switch entity.type {
 	case .PLAYER:
-		entity_rect := &SDL.FRect {
-			x = entity.pos.x,
-			y = entity.pos.y,
-			w = PLAYER_WIDTH,
-			h = PLAYER_HEIGHT,
-		}
+		rect := &SDL.FRect{x = entity.pos.x, y = entity.pos.y, w = PLAYER_WIDTH, h = PLAYER_HEIGHT}
 		texture: ^SDL.Texture
 
 		if entity.facing == 1 {
@@ -104,55 +116,56 @@ render_entity :: proc(entity: ^Entity, game: ^Game) {
 			texture = entity.texture_left
 		}
 
-		// Collision box
-		entity.side_left = entity_rect.x
-		entity.side_right = entity_rect.x + entity_rect.w
-		entity.side_top = entity_rect.y
-		entity.side_bottom = entity_rect.y + entity_rect.h
-
 		SDL.SetRenderDrawColor(game.renderer, 255, 0, 255, 0)
-		SDL.RenderCopyF(game.renderer, texture, nil, entity_rect)
+		SDL.RenderCopyF(game.renderer, texture, nil, rect)
 	}
 }
 
 render_block :: proc(block: ^Block, game: ^Game) {
 	switch block.type {
-	case .WALL:
-		wall_rect := &SDL.FRect{x = block.x, y = block.y, w = block.w, h = block.h}
-
-		// Collision box
-		block.side_left = wall_rect.x
-		block.side_right = wall_rect.x + wall_rect.w
-		block.side_top = wall_rect.y
-		block.side_bottom = wall_rect.y + wall_rect.h
+	case .GROUND, .WALL:
+		rect := &SDL.FRect{x = block.x, y = block.y, w = block.w, h = block.h}
 
 		SDL.SetRenderDrawColor(game.renderer, 255, 0, 255, 0)
-		SDL.RenderCopyF(game.renderer, block.texture, nil, wall_rect)
+		SDL.RenderCopyF(game.renderer, block.texture, nil, rect)
 	}
 }
 
-have_collided :: proc(entity_a: ^Entity, entity_b: ^Entity) -> b8 {
-	// If any of the sides from A are outside of B
-	if entity_a.side_bottom <= entity_b.side_top ||
-	   entity_a.side_top >= entity_b.side_bottom ||
-	   entity_a.side_right <= entity_b.side_left ||
-	   entity_a.side_left >= entity_b.side_right {
-		return false
-	   }
-	// If none of the sides from A are outside B
-	return true
+have_collided :: proc(entity_a: ^Entity, entity_b: ^Entity) -> bool {
+	// TODO
+	return false
 }
 
-has_collided :: proc(entity: ^Entity, block: ^Block) -> b8 {
-	// If any of the sides from A are outside of B
-	if entity.side_bottom <= block.side_top ||
-	   entity.side_top >= block.side_bottom ||
-	   entity.side_right <= block.side_left ||
-	   entity.side_left >= block.side_right {
-		return false
-	   }
-	// If none of the sides from A are outside B
-	return true
+has_collided :: proc(entity: ^Entity, block: ^Block) -> (Collision, bool) {
+	collision := Collision{}
+	switch block.type {
+	case .WALL, .GROUND:
+		if entity.collision_box.y <= block.collision_box.y - block.collision_box.h {
+			return collision, false
+		}
+
+		if entity.collision_box.x + entity.collision_box.w <= block.collision_box.x ||
+		   entity.collision_box.x >= block.collision_box.x + block.collision_box.w {
+			return collision, false
+		}
+
+		collision.collider = entity
+		collision.other_collider = block
+
+		if entity.collision_box.y + entity.collision_box.h < block.collision_box.y {
+			collision.side = .BOTTOM
+		} else if entity.collision_box.y > block.collision_box.y + block.collision_box.h {
+			collision.side = .BOTTOM
+		} else if entity.collision_box.x + entity.collision_box.w > block.collision_box.x {
+			collision.side = .RIGHT
+		} else if entity.collision_box.x < block.collision_box.x + block.collision_box.w {
+			collision.side = .LEFT
+		}
+
+		return collision, true
+	}
+
+	return collision, false
 }
 
 update_entity :: proc(entity: ^Entity, game: ^Game) {
@@ -163,6 +176,9 @@ update_entity :: proc(entity: ^Entity, game: ^Game) {
 		entity.prev_dir = entity.dir
 
 		apply_movement(entity, game)
+
+		entity.collision_box.x = entity.pos.x
+		entity.collision_box.y = entity.pos.y - 95 // shift upwards collision box so we can jump and not register any collisions with the ground
 	}
 }
 
@@ -197,6 +213,7 @@ apply_movement :: proc(entity: ^Entity, game: ^Game) {
 		entity.state = .JUMPING
 		entity.jumped = true
 		entity.can_jump = false
+		entity.grounded = false
 	}
 
 	if entity.jumped &&
@@ -243,12 +260,6 @@ apply_movement :: proc(entity: ^Entity, game: ^Game) {
 	entity.pos.x = clamp(entity.pos.x, 0, WINDOW_WIDTH - PLAYER_WIDTH)
 	entity.pos.y = clamp(entity.pos.y, 0, WINDOW_HEIGHT - GROUND_HEIGHT - PLAYER_HEIGHT)
 
-	if entity.pos.y >= WINDOW_HEIGHT - GROUND_HEIGHT - PLAYER_HEIGHT {
-		entity.grounded = true
-	} else {
-		entity.grounded = false
-	}
-
 	if entity.vel.x > 0 && entity.grounded {
 		entity.state = .WALKING
 	} else if entity.vel.x == 0 && entity.grounded {
@@ -294,8 +305,8 @@ main :: proc() {
 		SDL.DestroyWindow(window)
 	}
 
-	tickrate := 240.0
-	ticktime := 1000.0 / tickrate
+	tickrate := 244.0 // how many ticks per second
+	ticktime := 1000.0 / tickrate // tick duration
 
 	dt := 0.0
 
@@ -355,6 +366,8 @@ main :: proc() {
 			texture_right = texture_right,
 			texture_left = texture_left,
 			facing = 1,
+			grounded = false,
+			collision_box = &CollisionBox{w = PLAYER_WIDTH, h = PLAYER_HEIGHT},
 		},
 	)
 
@@ -364,13 +377,31 @@ main :: proc() {
 			type = .WALL,
 			texture = wall,
 			x = WINDOW_WIDTH - WALL_WIDTH,
-			y = WALL_HEIGHT - 110,
+			y = WINDOW_HEIGHT - 100 - WALL_HEIGHT,
 			w = WALL_WIDTH,
 			h = WALL_HEIGHT,
+			collision_box = &CollisionBox {
+				x = WINDOW_WIDTH - WALL_WIDTH,
+				y = WINDOW_HEIGHT - 100 - WALL_HEIGHT,
+				w = WALL_WIDTH,
+				h = WALL_HEIGHT,
+			},
+		},
+		Block {
+			type = .GROUND,
+			texture = wall,
+			x = 0,
+			y = WINDOW_HEIGHT - 100,
+			w = WINDOW_WIDTH,
+			h = WALL_HEIGHT,
+			collision_box = &CollisionBox {
+				x = 0,
+				y = WINDOW_HEIGHT - 100,
+				w = WINDOW_WIDTH,
+				h = WALL_HEIGHT,
+			},
 		},
 	)
-
-	wall_rect := &SDL.FRect{x = WINDOW_WIDTH - WALL_WIDTH, y = 0, w = WALL_WIDTH, h = WALL_HEIGHT}
 
 	event := SDL.Event{}
 
@@ -404,21 +435,26 @@ main :: proc() {
 				}
 
 				for _, k in game.blocks {
-					if has_collided(&game.entities[i], &game.blocks[k]) {
-						game.entities[i].pos = game.entities[i].prev_pos
- 					}
+					if collision, ok := has_collided(&game.entities[i], &game.blocks[k]); ok {
+						switch collision.side {
+						case .RIGHT, .LEFT, .TOP:
+							game.entities[i].pos = game.entities[i].prev_pos
+						case .BOTTOM:
+							game.entities[i].grounded = true
+						}
+					}
 				}
 			}
 		}
 
 		SDL.RenderCopy(game.renderer, background, nil, nil)
 
-		for _, i in game.entities {
-			render_entity(&game.entities[i], &game)
-		}
-
 		for _, i in game.blocks {
 			render_block(&game.blocks[i], &game)
+		}
+
+		for _, i in game.entities {
+			render_entity(&game.entities[i], &game)
 		}
 
 		SDL.RenderPresent(game.renderer)
