@@ -155,7 +155,7 @@ has_collided :: proc(entity: ^Entity, block: ^Block) -> (Collision, bool) {
 		if entity.collision_box.y + entity.collision_box.h < block.collision_box.y {
 			collision.side = .BOTTOM
 		} else if entity.collision_box.y > block.collision_box.y + block.collision_box.h {
-			collision.side = .BOTTOM
+			collision.side = .TOP
 		} else if entity.collision_box.x + entity.collision_box.w > block.collision_box.x {
 			collision.side = .RIGHT
 		} else if entity.collision_box.x < block.collision_box.x + block.collision_box.w {
