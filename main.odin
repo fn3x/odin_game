@@ -32,6 +32,7 @@ STOPPING_SPEED_AIR :: 0.005
 CollisionBox :: struct {
 	x, y: f32,
 	w, h: f32,
+	draw: bool,
 }
 
 Collider :: union {
@@ -71,14 +72,14 @@ Entity :: struct {
 	jump_pressed_time: f64,
 	jumped:            bool,
 	can_jump:          bool,
-	dir:               f32,
-	prev_dir:          f32,
+	dir:               i8,
+	prev_dir:          i8,
 	prev_pos:          [2]f32,
 	pos:               [2]f32,
 	prev_vel:          [2]f32,
 	vel:               [2]f32,
 	grounded:          bool,
-	facing:            i8,
+	facing:            u8,
 	collision_box:     ^CollisionBox,
 }
 
@@ -118,6 +119,19 @@ render_entity :: proc(entity: ^Entity, game: ^Game) {
 
 		SDL.SetRenderDrawColor(game.renderer, 255, 0, 255, 0)
 		SDL.RenderCopyF(game.renderer, texture, nil, rect)
+
+		if entity.collision_box.draw {
+			SDL.SetRenderDrawColor(game.renderer, 255, 255, 0, 255)
+			SDL.RenderDrawRectF(
+				game.renderer,
+				&SDL.FRect {
+					x = entity.collision_box.x,
+					y = entity.collision_box.y,
+					w = entity.collision_box.w,
+					h = entity.collision_box.h,
+				},
+			)
+		}
 	}
 }
 
@@ -128,6 +142,19 @@ render_block :: proc(block: ^Block, game: ^Game) {
 
 		SDL.SetRenderDrawColor(game.renderer, 255, 0, 255, 0)
 		SDL.RenderCopyF(game.renderer, block.texture, nil, rect)
+
+		if block.collision_box.draw {
+			SDL.SetRenderDrawColor(game.renderer, 255, 255, 0, 255)
+			SDL.RenderDrawRectF(
+				game.renderer,
+				&SDL.FRect {
+					x = block.collision_box.x,
+					y = block.collision_box.y,
+					w = block.collision_box.w,
+					h = block.collision_box.h,
+				},
+			)
+		}
 	}
 }
 
@@ -140,25 +167,29 @@ has_collided :: proc(entity: ^Entity, block: ^Block) -> (Collision, bool) {
 	collision := Collision{}
 	switch block.type {
 	case .WALL, .GROUND:
-		if entity.collision_box.y <= block.collision_box.y - block.collision_box.h {
-			return collision, false
-		}
-
-		if entity.collision_box.x + entity.collision_box.w <= block.collision_box.x ||
-		   entity.collision_box.x >= block.collision_box.x + block.collision_box.w {
+		if entity.collision_box.y + entity.collision_box.h < block.collision_box.y {
 			return collision, false
 		}
 
 		collision.collider = entity
 		collision.other_collider = block
 
-		if entity.collision_box.y + entity.collision_box.h < block.collision_box.y {
+		if entity.collision_box.y + entity.collision_box.h <= block.collision_box.y {
 			collision.side = .BOTTOM
-		} else if entity.collision_box.y > block.collision_box.y + block.collision_box.h {
+			return collision, true
+		} else if entity.collision_box.y >= block.collision_box.y + block.collision_box.h {
 			collision.side = .TOP
-		} else if entity.collision_box.x + entity.collision_box.w > block.collision_box.x {
+			return collision, true
+		}
+
+		if entity.collision_box.x + entity.collision_box.w < block.collision_box.x ||
+		   entity.collision_box.x > block.collision_box.x + block.collision_box.w {
+			return collision, false
+		}
+
+		if entity.collision_box.x + entity.collision_box.w >= block.collision_box.x {
 			collision.side = .RIGHT
-		} else if entity.collision_box.x < block.collision_box.x + block.collision_box.w {
+		} else if entity.collision_box.x <= block.collision_box.x + block.collision_box.w {
 			collision.side = .LEFT
 		}
 
@@ -178,7 +209,7 @@ update_entity :: proc(entity: ^Entity, game: ^Game) {
 		apply_movement(entity, game)
 
 		entity.collision_box.x = entity.pos.x
-		entity.collision_box.y = entity.pos.y - 95 // shift upwards collision box so we can jump and not register any collisions with the ground
+		entity.collision_box.y = entity.pos.y
 	}
 }
 
@@ -235,7 +266,7 @@ apply_movement :: proc(entity: ^Entity, game: ^Game) {
 
 	if b8(game.keyboard[SDL.SCANCODE_A]) | b8(game.keyboard[SDL.SCANCODE_LEFT]) {
 		entity.dir = -1
-		entity.facing = -1
+		entity.facing = 0
 	}
 
 	if entity.dir != 0.0 {
@@ -254,7 +285,7 @@ apply_movement :: proc(entity: ^Entity, game: ^Game) {
 
 	entity.vel.x = clamp(entity.vel.x, 0, VELOCITY_GAIN)
 
-	entity.pos.x += entity.dir * entity.vel.x * dt
+	entity.pos.x += f32(entity.dir) * entity.vel.x * dt
 	entity.pos.y -= entity.vel.y * dt
 
 	entity.pos.x = clamp(entity.pos.x, 0, WINDOW_WIDTH - PLAYER_WIDTH)
@@ -367,7 +398,7 @@ main :: proc() {
 			texture_left = texture_left,
 			facing = 1,
 			grounded = false,
-			collision_box = &CollisionBox{w = PLAYER_WIDTH, h = PLAYER_HEIGHT},
+			collision_box = &CollisionBox{w = PLAYER_WIDTH, h = PLAYER_HEIGHT, draw = true},
 		},
 	)
 
@@ -377,14 +408,15 @@ main :: proc() {
 			type = .WALL,
 			texture = wall,
 			x = WINDOW_WIDTH - WALL_WIDTH,
-			y = WINDOW_HEIGHT - 100 - WALL_HEIGHT,
+			y = WINDOW_HEIGHT - 50 - WALL_HEIGHT,
 			w = WALL_WIDTH,
-			h = WALL_HEIGHT,
+			h = WALL_HEIGHT - 50,
 			collision_box = &CollisionBox {
 				x = WINDOW_WIDTH - WALL_WIDTH,
-				y = WINDOW_HEIGHT - 100 - WALL_HEIGHT,
+				y = WINDOW_HEIGHT - 50 - WALL_HEIGHT,
 				w = WALL_WIDTH,
-				h = WALL_HEIGHT,
+				h = WALL_HEIGHT - 50,
+				draw = true,
 			},
 		},
 		Block {
@@ -399,6 +431,7 @@ main :: proc() {
 				y = WINDOW_HEIGHT - 100,
 				w = WINDOW_WIDTH,
 				h = WALL_HEIGHT,
+				draw = true,
 			},
 		},
 	)
@@ -437,10 +470,11 @@ main :: proc() {
 				for _, k in game.blocks {
 					if collision, ok := has_collided(&game.entities[i], &game.blocks[k]); ok {
 						switch collision.side {
-						case .RIGHT, .LEFT, .TOP:
-							game.entities[i].pos = game.entities[i].prev_pos
 						case .BOTTOM:
 							game.entities[i].grounded = true
+							game.entities[i].pos.y = game.entities[i].prev_pos.y
+						case .RIGHT, .LEFT, .TOP:
+							game.entities[i].pos.x = game.entities[i].prev_pos.x
 						}
 					}
 				}
